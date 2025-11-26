@@ -6,6 +6,7 @@
 // - Country pills + date filtering for transactions
 // - No city dropdowns (paynow/refund fallback to first city)
 // - Transactions table, view overlay, paynow/refund capture, statements
+// - Dashboard cash flow from transactions + refunds
 
 /* ============================
    Data / Constants
@@ -59,6 +60,7 @@ const baseTransactions = [
 ];
 
 const capturedPayments = [];
+const refundMovements = []; // outflows tracked here
 const currencyFormatters = {};
 const statusTimeouts = {};
 
@@ -94,7 +96,7 @@ const txResultsCount = document.getElementById("tx-results-count");
 
 // date controls
 const txDate = document.getElementById("tx-date");
-const txDateVisual = document.getElementById("tx-date-visual"); // visible DD/MM/YYYY
+const txDateVisual = document.getElementById("tx-date-visual"); // visible DD/MM/YYYY (may be null)
 const txApplyDate = document.getElementById("tx-apply-date");
 const txClearDate = document.getElementById("tx-clear-date");
 
@@ -107,6 +109,12 @@ const refundCountry = document.getElementById("refund-country");
 const refundAmountLabel = document.getElementById("refund-amount-label");
 const refundAmountInput = document.getElementById("refund-amount");
 const statementsBody = document.getElementById("statements-body");
+
+// dashboard cash flow DOM refs
+const dailyInflowEl = document.getElementById("daily-inflow");
+const dailyOutflowEl = document.getElementById("daily-outflow");
+const monthlyInflowEl = document.getElementById("monthly-inflow");
+const monthlyOutflowEl = document.getElementById("monthly-outflow");
 
 /* ============================
    Helpers: dates, currency, ids
@@ -248,6 +256,19 @@ loginForm?.addEventListener("submit", (ev) => {
 });
 
 logoutButton?.addEventListener("click", () => {
+  // Clear session-specific data so created transactions aren't visible next login
+  capturedPayments.length = 0;
+  refundMovements.length = 0;
+  selectedCountry = "All";
+  if (txDate) txDate.value = "";
+
+  renderCountryButtons();
+  if (typeof updateDateVisual === "function") {
+    updateDateVisual();
+  }
+  renderTransactions();
+  updateDashboardFlows();
+
   currentUser = null;
   appShell.classList.add("hidden");
   loginScreen.classList.remove("hidden");
@@ -307,6 +328,7 @@ function renderTransactions() {
 
   if (!filtered.length) {
     transactionsBody.innerHTML = '<tr><td colspan="6">No transactions found for the current filters.</td></tr>';
+    updateDashboardFlows();
     return;
   }
 
@@ -338,6 +360,70 @@ function renderTransactions() {
       showOverlay(html);
     });
   });
+
+  // update dashboard flows whenever transactions change/filter
+  updateDashboardFlows();
+}
+
+/* ============================
+   Dashboard cash flow from transactions
+   ============================ */
+function updateDashboardFlows() {
+  if (!dailyInflowEl || !dailyOutflowEl || !monthlyInflowEl || !monthlyOutflowEl) return;
+
+  const selectedDate = txDate?.value || "";
+  const countryFilter = selectedCountry || "All";
+
+  const inflowAll = [...baseTransactions, ...capturedPayments].filter(tx =>
+    (countryFilter === "All" || tx.country === countryFilter)
+  );
+  const outflowAll = refundMovements.filter(tx =>
+    (countryFilter === "All" || tx.country === countryFilter)
+  );
+
+  // no data at all
+  if (inflowAll.length === 0 && outflowAll.length === 0) {
+    const zero = numberFormatter.format(0);
+    dailyInflowEl.textContent = zero;
+    dailyOutflowEl.textContent = zero;
+    monthlyInflowEl.textContent = zero;
+    monthlyOutflowEl.textContent = zero;
+    return;
+  }
+
+  let referenceDate = selectedDate;
+  if (!referenceDate) {
+    // use most recent date across inflow & outflow
+    const dates = [...inflowAll, ...outflowAll].map(t => t.date);
+    referenceDate = dates.sort().slice(-1)[0]; // last (max) date
+  }
+
+  const refMonth = referenceDate ? referenceDate.slice(0, 7) : null; // YYYY-MM
+
+  const dailyInflowUsd = inflowAll
+    .filter(tx => tx.date === referenceDate)
+    .reduce((sum, tx) => sum + (tx.amountUsd || 0), 0);
+
+  const dailyOutflowUsd = outflowAll
+    .filter(tx => tx.date === referenceDate)
+    .reduce((sum, tx) => sum + (tx.amountUsd || 0), 0);
+
+  const monthlyInflowUsd = refMonth
+    ? inflowAll
+        .filter(tx => tx.date.slice(0, 7) === refMonth)
+        .reduce((sum, tx) => sum + (tx.amountUsd || 0), 0)
+    : 0;
+
+  const monthlyOutflowUsd = refMonth
+    ? outflowAll
+        .filter(tx => tx.date.slice(0, 7) === refMonth)
+        .reduce((sum, tx) => sum + (tx.amountUsd || 0), 0)
+    : 0;
+
+  dailyInflowEl.textContent = numberFormatter.format(dailyInflowUsd);
+  dailyOutflowEl.textContent = numberFormatter.format(dailyOutflowUsd);
+  monthlyInflowEl.textContent = numberFormatter.format(monthlyInflowUsd);
+  monthlyOutflowEl.textContent = numberFormatter.format(monthlyOutflowUsd);
 }
 
 /* ============================
@@ -398,10 +484,23 @@ if (refundForm) {
       markStatus("refund-status", "Please complete the refund details (country + amount).");
       return;
     }
+    const amountUsd = convertLocalToUsd(localAmt, country);
     const id = generateRefundId();
+
+    // track outflow for dashboard cash flow
+    refundMovements.unshift({
+      id,
+      date: getToday(),
+      country,
+      amountUsd,
+      relatedTransaction: txnId || null,
+    });
+
     markStatus("refund-status", `Refund ${id} queued for ${txnId}.`);
     e.target.reset();
     refundForm.querySelector('#refund-amount').disabled = true;
+
+    updateDashboardFlows();
   });
 }
 
@@ -475,7 +574,9 @@ function initDateFilter() {
   }
 
   // when native value changes, update visual
-  txDate.addEventListener("change", updateDateVisual);
+  txDate.addEventListener("change", () => {
+    updateDateVisual();
+  });
 
   txApplyDate?.addEventListener("click", () => {
     updateDateVisual();
@@ -507,6 +608,7 @@ document.querySelectorAll(".nav-link").forEach(link => {
     if (link.classList.contains("hidden")) return;
     showPanel(link.dataset.target);
     if (link.dataset.target === "transactions") ensureTransactionsVisible();
+    if (link.dataset.target === "dashboard") updateDashboardFlows();
   });
 });
 
@@ -521,3 +623,4 @@ onCountryForAmountChange(refundCountry, refundAmountInput, refundAmountLabel);
 // initial render
 renderStatements();
 renderTransactions();
+updateDashboardFlows();

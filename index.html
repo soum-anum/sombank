@@ -3,13 +3,13 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>SOM Bank Console</title>
+    <title>SM Demo</title>
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
     <div id="login-screen" class="login-screen">
       <form id="login-form" class="login-card">
-        <h1>SOM Finserve</h1>
+        <h1>SM Demo</h1>
         <p class="login-sub">Secure business console</p>
         <label class="field">
           <span>Username</span>
@@ -107,30 +107,28 @@
           </header>
 
           <!-- Filters card: Country + Date side-by-side -->
-<!-- Filters card: Country + single Date picker -->
-<div class="filters card">
-  <div class="filters-row">
-    <div class="country-filter">
-      <span>Country</span>
-      <div id="country-buttons" class="pill-group"></div>
-    </div>
+          <!-- Filters card: Country + single Date picker -->
+          <div class="filters card">
+            <div class="filters-row">
+              <div class="country-filter">
+                <span>Country</span>
+                <div id="country-buttons" class="pill-group"></div>
+              </div>
 
-    <div class="date-filter">
-      <span>Date</span>
-      <div class="date-row">
-        <div class="date-item">
-          <input type="date" id="tx-date" />
-        </div>
-      </div>
-      <div class="date-actions">
-        <button type="button" id="tx-clear-date" class="secondary small">Clear</button>
-        <button type="button" id="tx-apply-date" class="primary small">Apply</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-
+              <div class="date-filter">
+                <span>Date</span>
+                <div class="date-row">
+                  <div class="date-item">
+                    <input type="date" id="tx-date" />
+                  </div>
+                </div>
+                <div class="date-actions">
+                  <button type="button" id="tx-clear-date" class="secondary small">Clear</button>
+                  <button type="button" id="tx-apply-date" class="primary small">Apply</button>
+                </div>
+              </div>
+            </div>
+          </div>
 
           <!-- Transactions table now sits below the filters inside the same card block -->
           <div class="card transactions-table-wrapper">
@@ -234,8 +232,10 @@
             <h1>Business Profile</h1>
             <p>Snapshot of SOM Retail Holdings' treasury setup.</p>
           </header>
-          <div class="card profile">
-            <div>
+
+          <!-- NEW: cards side by side -->
+          <div class="profile-grid">
+            <div class="card">
               <h3>Entity</h3>
               <ul>
                 <li>Registered Name: SOM Retail Holdings Pte Ltd</li>
@@ -244,7 +244,7 @@
                 <li>Operating HQ: Singapore</li>
               </ul>
             </div>
-            <div>
+            <div class="card">
               <h3>Team & Contacts</h3>
               <ul>
                 <li>Finance Lead: Prisha Menon</li>
@@ -253,7 +253,7 @@
                 <li>Support: treasury@sombank.com</li>
               </ul>
             </div>
-            <div>
+            <div class="card">
               <h3>Limits & Licenses</h3>
               <ul>
                 <li>Daily Payment Limit: USD 1.5M</li>

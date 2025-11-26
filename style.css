@@ -630,3 +630,20 @@ th {
   color: #7c8ab5;
   font-weight: 600;
 }
+
+.card {
+  background: var(--card);
+  border-radius: 16px;
+  padding: 1.5rem;
+  box-shadow: 0 10px 25px rgba(15, 25, 61, 0.12);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+/* profile cards side by side */
+.profile-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1.5rem;
+}
